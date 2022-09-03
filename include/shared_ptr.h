@@ -1,3 +1,15 @@
+#ifndef SHARED_PTR_H_
+#define SHARED_PTR_H_
+/**
+ * @file shared_ptr.h
+ * @author LinuxYn (acmerzhangxipeng@163.com)
+ * @brief 智能指针 shared_ptr 实现
+ * @version 0.1
+ * @date 2022-09-03
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <iostream>
 #include <mutex>
 using namespace std;
@@ -70,3 +82,5 @@ public:
     }
 
 };
+
+#endif
