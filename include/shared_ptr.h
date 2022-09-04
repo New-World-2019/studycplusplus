@@ -13,30 +13,52 @@
 #include <iostream>
 #include <mutex>
 
+class Shared_count {
+    typedef int element_type;
+public:
+     constexpr Shared_count() noexcept
+     : pi(0) {
+
+     }
+
+     explicit Shared_count(element_type _pi):pi(_pi) {
+
+     }
+
+     void reduce_count() {
+        pi--;
+     }
+
+     void add_count() {
+        pi++;
+     }
+
+    bool unique() const noexcept {
+        return pi == 1;
+    }
+
+    void swap(Shared_count* p) noexcept {
+        std::swap(pi, p->pi);
+    }
+
+    long use_count() const noexcept {
+        return pi;
+    }
+private:
+    element_type pi;
+};
+
+/**
+ * @brief 智能指针 shared_ptr
+ * 
+ * @tparam T 
+ */
 template <typename T>
 class Shared_ptr {
 public:
-    typedef long reference_count_type;
+    typedef Shared_count reference_count_type;
     typedef T element_type;
-private:
-    //减少引用计数
-    void reduce_count() {
-        std::cout<<"reduce_count"<<std::endl;
-        m->lock();
-        /**
-         * @brief 注意：不能写成 *num--
-         * 因为后缀--的优先级高于 *，所以需要添加括号 
-         */
-        (*num)--;
-        m->unlock();
-    }
 
-    //增加引用计数
-    void add_count() {
-        m->lock();
-        (*num)++;
-        m->unlock();
-    }
 public:
     /**
      * @brief 默认构造函数
@@ -44,7 +66,7 @@ public:
      * 添加 noexceppt 的原因：
      */
     constexpr Shared_ptr() noexcept
-    :ptr(nullptr),num(new reference_count_type(0)),m(new std::mutex) {
+    :ptr(nullptr), ref_count(new reference_count_type(0)), m(new std::mutex) {
         std::cout<<"Shared_ptr()"<<std::endl;
     }
 
@@ -54,45 +76,45 @@ public:
      * @param _ptr 
      */
     explicit Shared_ptr(T* _ptr)
-    :ptr(_ptr),num(new reference_count_type(1)),m(new std::mutex) {
+    :ptr(_ptr),ref_count(new reference_count_type(1)),m(new std::mutex) {
         std::cout<<"Shared_ptr(T* _ptr)"<<std::endl;
     }
     
     //拷贝构造函数
     Shared_ptr(const Shared_ptr<T>& p) noexcept
-    :ptr(p.ptr),num(p.num),m(p.m) {
-        add_count();
+    :ptr(p.ptr), ref_count(p.num), m(p.m) {
+        ref_count->add_count();
     }
 
     //赋值构造函数
     Shared_ptr& operator=(Shared_ptr& p) noexcept {
         std::cout<<"SharedPtr operator="<<std::endl;
         if(p.ptr != ptr) {
-            reduce_count();
+            ref_count->reduce_count();
             ptr = p.ptr;
-            num = p.num;
+            ref_count = p.ref_count;
             m = p.m;
-            add_count();
+            ref_count->add_count();
         }
         return *this;
     }
 
     //移动构造函数
     Shared_ptr(Shared_ptr&& p) noexcept
-    : ptr(p.ptr), num(p.num),m(p.m) {
+    : ptr(p.ptr), ref_count(p.ref_count),m(p.m) {
         p.ptr = nullptr;
-        p.num = nullptr;
+        p.ref_count = nullptr;
         p.m = nullptr;
     }
 
     //移动赋值函数
     Shared_ptr& operator=(Shared_ptr&& p) noexcept {
         if(p.ptr != ptr) {
-            reduce_count();
+            ref_count->reduce_count();
             ptr = p.ptr;
-            num = p.num;
+            ref_count = p.ref_count;
             m = p.m;
-            add_count();
+            ref_count->add_count();
         }
         return *this;
     }
@@ -106,7 +128,7 @@ public:
     }
 
     /**
-     * @brief 获取存储的指针
+     * @brief 获取存储的指针 ok
      * 
      * @return T*
      */
@@ -114,36 +136,39 @@ public:
         return ptr;
     }
 
-    //返回引用计数
-    reference_count_type use_count() const noexcept {
-        return *num;
+    //返回引用计数 ok
+    long use_count() const noexcept {
+        return ref_count->use_count();
     }
 
-    // 如果存储的指针不为空，返回 true
+    //查询引用计数是否唯一 ok
+    bool unique() const noexcept {
+        return ref_count->unique();
+    }
+
+    // 如果存储的指针不为空，返回 true  ok
     explicit operator bool() const { 
         return ptr == nullptr ? false : true;
     }
 
-    // 交换数据
+    // 交换数据 ok
     void swap(Shared_ptr& other) noexcept {
 	    std::swap(ptr, other.ptr);
-	    std::swap(num, other.num);
+        ref_count->swap(other.ref_count);
         std::swap(m, other.m);
     }
     
     //析构函数
     ~Shared_ptr() {
         std::cout<<"~Shared_ptr start"<<std::endl;
-        std::cout<<"*num 1= "<<*num<<std::endl;
-        if(*num) {
-            reduce_count();
-            std::cout<<"*num 2= "<<*num<<std::endl;
-            if(*num == 0 && ptr != nullptr) {
+        if(ref_count->use_count()) {
+            ref_count->reduce_count();
+            if(ref_count->use_count() == 0 && ptr != nullptr) {
                 delete ptr;
-                delete num;
+                delete ref_count;
                 delete m;
                 ptr = nullptr;
-                num = nullptr;
+                ref_count = nullptr;
                 m = nullptr;
             }
         }
@@ -153,7 +178,7 @@ public:
 
 private:
     element_type* ptr;
-    reference_count_type* num;
+    reference_count_type* ref_count;
     std::mutex* m;
 };
 
