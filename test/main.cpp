@@ -5,13 +5,15 @@
  * @brief 测试 shared_ptr 智能指针
  * 
  */
-void testSharedPtr() {
-    cout<<"function testSharedPtr"<<endl;
-    SharedPtr<int>p = new int(1);
-    cout<<*p<<endl;
+void test_Shared_ptr() {
+    std::cout<<"function testSharedPtr"<<std::endl;
+    // 默认构造函数测试
+    Shared_ptr<int>p;
+    Shared_ptr<int>p1(new int(1));
+    std::cout<<*p1<<std::endl;
 }
 
 int main() {
-    cout<<"Hello World"<<endl;
-    testSharedPtr();
+    std::cout<<"Hello World"<<std::endl;
+    test_Shared_ptr();
 }
